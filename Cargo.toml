@@ -1,0 +1,2 @@
+[workspace]
+members = ["bitbash", "bitbash_macros"]
