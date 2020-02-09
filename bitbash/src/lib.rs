@@ -68,41 +68,100 @@ mod tests {
                     [12..16] => [12..16],
                     [20..24] => [20..24],
                 }
-                field e: Bar = [24..28];
+                field e: FooE = [24..28];
             }
 
             #[derive(crate::$BitEnum, Copy, Clone, PartialEq, Eq, Debug)]
-            enum Bar {
+            enum FooE {
                 A = 0b1010,
                 B = 0b0101,
             }
 
             #[test]
             fn foo() {
-                let mut foo = Foo::new(Bar::A);
+                let mut foo = Foo::new(FooE::A);
                 assert_eq!(foo.a(), false);
                 assert_eq!(foo.b(), 0u8);
                 assert_eq!(foo.c(), 0u8);
                 assert_eq!(foo.d(), 0u32);
-                assert_eq!(foo.e(), Bar::A);
+                assert_eq!(foo.e(), FooE::A);
+                assert_eq!(foo.0, (FooE::A as u32) << 24);
                 foo.set_a(true);
                 foo.set_b(0x12u8);
                 foo.set_c(0x34u8);
                 foo.set_d((0x5u32 << 12) | (0x6u32 << 20));
-                foo.set_e(Bar::B);
+                foo.set_e(FooE::B);
                 assert_eq!(foo.a(), true);
                 assert_eq!(foo.b(), 0x12u8);
                 assert_eq!(foo.c(), 0x34u8);
                 assert_eq!(foo.d(), (0x5u32 << 12) | (0x6u32 << 20));
-                assert_eq!(foo.e(), Bar::B);
+                assert_eq!(foo.e(), FooE::B);
                 assert_eq!(
                     foo.0,
                     (1 << 31)
                         | (0x12 << 0)
                         | ((0x4 << 8) | (0x3 << 16))
                         | ((0x5 << 12) | (0x6 << 20))
-                        | (0b0101 << 24)
+                        | ((FooE::B as u32) << 24)
                 );
+            }
+
+            const BAR_LEN: usize = 2;
+
+            $crate::bitfield! {
+                struct Bar([u32; BAR_LEN]);
+
+                new();
+
+                field a: u32 = 0;
+                field b: u8 = (BAR_LEN - 1)[16..24];
+            }
+
+            #[test]
+            fn bar() {
+                let mut bar = Bar::new();
+                assert_eq!(bar.a(), 0);
+                assert_eq!(bar.b(), 0);
+                assert_eq!(bar.0, [0, 0]);
+                bar.set_a(1);
+                bar.set_b(2);
+                assert_eq!(bar.a(), 1);
+                assert_eq!(bar.b(), 2);
+                assert_eq!(bar.0, [1, 2 << 16]);
+            }
+
+            $crate::bitfield! {
+                struct Baz {
+                    _padding0: [u32; 1],
+                    a0: u32,
+                    a1: u32,
+                    _padding1: [u32; 2],
+                    pub b: u32,
+                }
+
+                new();
+
+                field a: u64 = a0 ~ a1;
+            }
+
+            #[test]
+            fn baz() {
+                let mut baz = Baz::new();
+                assert_eq!(baz.a(), 0);
+                assert_eq!(baz._padding0, [0]);
+                assert_eq!(baz.a0, 0);
+                assert_eq!(baz.a1, 0);
+                assert_eq!(baz._padding1, [0, 0]);
+                assert_eq!(baz.b, 0);
+                baz.set_a(!0);
+                assert_eq!(baz.a(), !0);
+                assert_eq!(baz._padding0, [0]);
+                assert_eq!(baz.a0, !0);
+                assert_eq!(baz.a1, !0);
+                assert_eq!(baz._padding1, [0, 0]);
+                assert_eq!(baz.b, 0);
+                baz.b = 0x10101010;
+                assert_eq!(baz.a(), !0);
             }
         };
     }
