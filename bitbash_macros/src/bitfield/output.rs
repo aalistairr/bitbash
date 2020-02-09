@@ -103,22 +103,6 @@ impl ToTokens for Bitfield {
                     _ => unreachable!(),
                 };
 
-                let inbounds_assertion = match &strukt.fields {
-                    Fields::Unnamed(fields) => match &fields.unnamed[0].ty {
-                        Type::Array(t) => match &rel.to_src {
-                            Some(i) => {
-                                let len = &t.len;
-                                Some(quote! {
-                                    pub const _ASSERT_INBOUNDS: () = assert!(#i < #len);
-                                })
-                            }
-                            _ => unreachable!(),
-                        },
-                        _ => None,
-                    },
-                    _ => None,
-                };
-
                 let (rel_to_start, rel_to_end) = (&rel.to.start, &rel.to.end);
                 let (rel_from_start, rel_from_end) = (&rel.from.start, &rel.from.end);
                 let self_repr_ty = self_repr_ty(strukt, &rel.to_src);
@@ -128,6 +112,19 @@ impl ToTokens for Bitfield {
                 let self_mask = mask(&self_repr_ty, &format_ident!("SELF_BITS"));
                 let value_mask = mask(&value_repr_ty, &format_ident!("VALUE_BITS"));
 
+                let inbounds_assertion = match &strukt.fields {
+                    Fields::Unnamed(fields) => match &fields.unnamed[0].ty {
+                        Type::Array(t) => match &rel.to_src {
+                            Some(i) => {
+                                let len = &t.len;
+                                Some(quote! { assert!(#i < #len); })
+                            }
+                            _ => unreachable!(),
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                };
                 let assert_inbounds = inbounds_assertion.map(|assertion| match use_const {
                     true => quote! { pub const _ASSERT_INBOUNDS: () = #assertion; },
                     false => assertion,
