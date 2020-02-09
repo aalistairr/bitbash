@@ -3,9 +3,15 @@ name = "bitbash"
 version = "0.1.0"
 authors = ["Alistair Geesing <alistair.geesing@icloud.com>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "Macros for working with bitfields"
+repository = "https://github.com/aalistairr/bitbash"
+documentation = "https://docs.rs/bitbash"
+keywords = ["bitfield", "bitenum", "bitflags"]
+categories = ["development-tools"]
 
 [dependencies]
-bitbash-macros = { path = "../bitbash_macros" }
+bitbash-macros = { version = "=0.1.0", path = "../bitbash_macros" }
 
 [features]
 const = []
