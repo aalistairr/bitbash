@@ -12,12 +12,26 @@ use crate::constness;
 pub struct Bitfield {
     pub use_const: bool,
     pub strukt: ItemStruct,
+    pub new: Option<New>,
     pub fields: Vec<Field>,
 }
 
 #[derive(Clone)]
+pub struct New {
+    pub attrs: Vec<NewAttribute>,
+    pub vis: Visibility,
+    pub init_field_names: Vec<Ident>,
+    pub init_field_tys: Vec<Type>,
+}
+
+#[derive(Clone)]
+pub enum NewAttribute {
+    DisableCheck,
+}
+
+#[derive(Clone)]
 pub struct Field {
-    pub attrs: Vec<Attribute>,
+    pub attrs: Vec<FieldAttribute>,
     pub vis: Visibility,
     pub name: Ident,
     pub value_ty: Type,
@@ -25,7 +39,7 @@ pub struct Field {
 }
 
 #[derive(Clone)]
-pub enum Attribute {
+pub enum FieldAttribute {
     ReadOnly,
     PrivateWrite,
 }
@@ -42,6 +56,7 @@ impl ToTokens for Bitfield {
         let Bitfield {
             use_const,
             strukt,
+            new,
             fields,
         } = self;
         let constness = constness(*use_const);
@@ -236,6 +251,31 @@ impl ToTokens for Bitfield {
             }
         });
 
+        if let Some(new) = new {
+            let mut disable_check = false;
+            for attr in &new.attrs {
+                match attr {
+                    NewAttribute::DisableCheck => disable_check = true,
+                }
+            }
+
+            let all_field_names: Vec<_> = fields.iter().map(|f| f.name.clone()).collect();
+            let new_f = NewF {
+                disable_check,
+                vis: &new.vis,
+                constness: &constness,
+                strukt,
+                all_field_names: &all_field_names,
+                init_field_names: &new.init_field_names,
+                init_field_tys: &new.init_field_tys,
+            };
+            tokens.extend(quote! {
+                impl #impl_generics #strukt_name #ty_generics #where_clause {
+                    #new_f
+                }
+            });
+        }
+
         for field in fields {
             let value_ty = &field.value_ty;
             let rels = field_rels(field);
@@ -244,8 +284,8 @@ impl ToTokens for Bitfield {
             let mut private_write = false;
             for attr in &field.attrs {
                 match attr {
-                    Attribute::ReadOnly => ro = true,
-                    Attribute::PrivateWrite => private_write = true,
+                    FieldAttribute::ReadOnly => ro = true,
+                    FieldAttribute::PrivateWrite => private_write = true,
                 }
             }
             let emit_setter = !ro || private_write;
@@ -356,5 +396,71 @@ impl<'a> ToTokens for Set<'a> {
                 self
             }
         });
+    }
+}
+
+pub struct NewF<'a> {
+    disable_check: bool,
+    vis: &'a Visibility,
+    constness: &'a Option<Token![const]>,
+    strukt: &'a ItemStruct,
+    all_field_names: &'a [Ident],
+    init_field_names: &'a [Ident],
+    init_field_tys: &'a [Type],
+}
+
+impl<'a> ToTokens for NewF<'a> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let NewF {
+            disable_check,
+            vis,
+            constness,
+            strukt,
+            all_field_names,
+            init_field_names,
+            init_field_tys,
+        } = self;
+
+        let strukt_name = &strukt.ident;
+        let (_, ty_generics, _) = strukt.generics.split_for_impl();
+
+        let with_init_field = init_field_names
+            .iter()
+            .map(|name| format_ident!("with_{}", name));
+
+        fn initializer(ty: &Type) -> Expr {
+            match ty {
+                Type::Array(t) => {
+                    let len = &t.len;
+                    parse_quote! { [0; #len] }
+                }
+                _ => parse_quote! { 0 },
+            }
+        }
+        let zero_initializer = match &strukt.fields {
+            Fields::Unnamed(fields) => {
+                let initializer = initializer(&fields.unnamed[0].ty);
+                quote! { #strukt_name(#initializer) }
+            }
+            Fields::Named(fields) => {
+                let field_name = fields.named.iter().map(|f| &f.ident);
+                let initializer = fields.named.iter().map(|f| initializer(&f.ty));
+                quote! { #strukt_name {
+                    #(#field_name: #initializer,)*
+                }}
+            }
+            Fields::Unit => unreachable!(),
+        };
+        let check = match disable_check {
+            true => None,
+            false => Some(quote! { #(let _ = this.#all_field_names();)* }),
+        };
+        tokens.extend(quote! {
+            #vis #constness fn new(#(#init_field_names: #init_field_tys),*) -> #strukt_name #ty_generics {
+                let this = #zero_initializer #(.#with_init_field(#init_field_names))*;
+                #check
+                this
+            }
+        })
     }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Range;
 
 use proc_macro::TokenStream;
@@ -5,7 +6,7 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::parse::Result;
 use syn::{parse_macro_input, parse_quote};
-use syn::{token, Error, Expr, Fields, ItemStruct, Meta, Path, RangeLimits, Token, Type};
+use syn::{token, Error, Expr, Fields, Ident, ItemStruct, Meta, Path, RangeLimits, Token, Type};
 
 mod output;
 mod parse;
@@ -100,9 +101,45 @@ fn into_output_spec(bitfield: parse::Bitfield, use_const: bool) -> Result<output
     for field in bitfield.fields {
         fields.push(into_output_field(&strukt, field)?);
     }
+
+    let new = match bitfield.new {
+        None => None,
+        Some(new) => {
+            let mut attrs = Vec::new();
+            for attr in new.attrs {
+                attrs.push(match attr.parse_meta()? {
+                    Meta::Path(p) if p.is_ident("disable_check") => {
+                        output::NewAttribute::DisableCheck
+                    }
+                    _ => return Err(Error::new_spanned(attr, "invalid attribute")),
+                });
+            }
+
+            let field_tys: HashMap<Ident, Type> = fields
+                .iter()
+                .map(|f| (f.name.clone(), f.value_ty.clone()))
+                .collect();
+            let mut init_field_tys = Vec::new();
+            for name in &new.init_fields {
+                match field_tys.get(name) {
+                    Some(ty) => init_field_tys.push(ty.clone()),
+                    None => return Err(Error::new_spanned(name, "field does not exist")),
+                }
+            }
+            let init_field_names = new.init_fields.into_iter().collect();
+            Some(output::New {
+                attrs,
+                vis: new.vis,
+                init_field_names,
+                init_field_tys,
+            })
+        }
+    };
+
     Ok(output::Bitfield {
         use_const,
         strukt,
+        new,
         fields,
     })
 }
@@ -120,8 +157,8 @@ fn into_output_field(bitfield: &ItemStruct, field: parse::Field) -> Result<outpu
     let mut out_attrs = Vec::new();
     for attr in in_attrs {
         out_attrs.push(match attr.parse_meta()? {
-            Meta::Path(p) if p.is_ident("ro") => output::Attribute::ReadOnly,
-            Meta::Path(p) if p.is_ident("private_write") => output::Attribute::PrivateWrite,
+            Meta::Path(p) if p.is_ident("ro") => output::FieldAttribute::ReadOnly,
+            Meta::Path(p) if p.is_ident("private_write") => output::FieldAttribute::PrivateWrite,
             _ => return Err(Error::new_spanned(attr, "invalid attribute")),
         });
     }

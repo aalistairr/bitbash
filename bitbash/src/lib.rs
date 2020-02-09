@@ -79,7 +79,7 @@ mod tests {
 
             #[test]
             fn foo() {
-                let mut foo = Foo(0);
+                let mut foo = Foo::new(Bar::A);
                 assert_eq!(foo.a(), false);
                 assert_eq!(foo.b(), 0u8);
                 assert_eq!(foo.c(), 0u8);
@@ -101,7 +101,7 @@ mod tests {
                         | (0x12 << 0)
                         | ((0x4 << 8) | (0x3 << 16))
                         | ((0x5 << 12) | (0x6 << 20))
-                        | (0b1010 << 24)
+                        | (0b0101 << 24)
                 );
             }
         };

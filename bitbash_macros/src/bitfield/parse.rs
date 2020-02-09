@@ -22,7 +22,7 @@ pub struct New {
     pub vis: Visibility,
     pub new_token: kw::new,
     pub paren_token: token::Paren,
-    pub fields: Punctuated<Ident, Token![,]>,
+    pub init_fields: Punctuated<Ident, Token![,]>,
     pub semi_token: Token![;],
 }
 
@@ -115,7 +115,7 @@ impl Parse for NewOrField {
                 vis,
                 new_token,
                 paren_token: parenthesized!(content in input),
-                fields: Punctuated::parse_terminated(&content)?,
+                init_fields: Punctuated::parse_terminated(&content)?,
                 semi_token: input.parse()?,
             }))
         } else {
