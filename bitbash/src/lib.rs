@@ -59,6 +59,8 @@ mod tests {
             crate::$bitfield! {
                 struct Foo(u32);
 
+                new(e);
+
                 field a: bool = [31];
                 field b: u8 = [0..8];
                 field c: u8 = [8..12] ~ [16..20];
@@ -71,8 +73,8 @@ mod tests {
 
             #[derive(crate::$BitEnum, Copy, Clone, PartialEq, Eq, Debug)]
             enum Bar {
-                A = 0b0000,
-                B = 0b1010,
+                A = 0b1010,
+                B = 0b0101,
             }
 
             #[test]

@@ -1,17 +1,29 @@
 use proc_macro2::Span;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::punctuated::Punctuated;
-use syn::{braced, parse_quote, token, Error};
+use syn::{braced, parenthesized, parse_quote, token, Error};
 use syn::{Attribute, Expr, Ident, ItemStruct, RangeLimits, Token, Type, Visibility};
 
 pub mod kw {
     syn::custom_keyword!(field);
+    syn::custom_keyword!(new);
 }
 
 #[derive(Clone)]
 pub struct Bitfield {
     pub strukt: ItemStruct,
+    pub new: Option<New>,
     pub fields: Vec<Field>,
+}
+
+#[derive(Clone)]
+pub struct New {
+    pub attrs: Vec<Attribute>,
+    pub vis: Visibility,
+    pub new_token: kw::new,
+    pub paren_token: token::Paren,
+    pub fields: Punctuated<Ident, Token![,]>,
+    pub semi_token: Token![;],
 }
 
 #[derive(Clone)]
@@ -64,30 +76,59 @@ pub enum Index {
 
 impl Parse for Bitfield {
     fn parse(input: ParseStream) -> Result<Bitfield> {
-        Ok(Bitfield {
-            strukt: input.parse()?,
-            fields: {
-                let mut fields = Vec::new();
-                while !input.is_empty() {
-                    fields.push(input.parse()?);
+        let strukt = input.parse()?;
+        let mut new = None;
+        let mut fields = Vec::new();
+        while !input.is_empty() {
+            match input.parse()? {
+                NewOrField::New(n) if new.is_none() => new = Some(n),
+                NewOrField::New(n) => {
+                    return Err(Error::new_spanned(
+                        n.new_token,
+                        "multiple definitions of `new`",
+                    ))
                 }
-                fields
-            },
+                NewOrField::Field(f) => fields.push(f),
+            }
+        }
+        Ok(Bitfield {
+            strukt,
+            new,
+            fields,
         })
     }
 }
 
-impl Parse for Field {
-    fn parse(input: ParseStream) -> Result<Field> {
-        Ok(Field {
-            attrs: input.call(Attribute::parse_outer)?,
-            vis: input.parse()?,
-            field_token: input.parse()?,
-            name: input.parse()?,
-            colon_token: input.parse()?,
-            value_ty: input.parse()?,
-            composition: input.parse()?,
-        })
+enum NewOrField {
+    New(New),
+    Field(Field),
+}
+
+impl Parse for NewOrField {
+    fn parse(input: ParseStream) -> Result<NewOrField> {
+        let attrs = input.call(Attribute::parse_outer)?;
+        let vis = input.parse()?;
+        if let Ok(new_token) = input.parse() {
+            let content;
+            Ok(NewOrField::New(New {
+                attrs,
+                vis,
+                new_token,
+                paren_token: parenthesized!(content in input),
+                fields: Punctuated::parse_terminated(&content)?,
+                semi_token: input.parse()?,
+            }))
+        } else {
+            Ok(NewOrField::Field(Field {
+                attrs,
+                vis,
+                field_token: input.parse()?,
+                name: input.parse()?,
+                colon_token: input.parse()?,
+                value_ty: input.parse()?,
+                composition: input.parse()?,
+            }))
+        }
     }
 }
 
