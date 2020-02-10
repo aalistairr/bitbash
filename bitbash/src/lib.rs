@@ -2,6 +2,7 @@
     all(test, feature = "const"),
     feature(const_fn, const_panic, const_if_match, const_mut_refs)
 )]
+#![cfg_attr(not(test), no_std)]
 
 //! Macros for working with bitfields.
 //!
