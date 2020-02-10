@@ -17,17 +17,17 @@
 //!
 //! bitfield! {
 //!     #[derive(Copy, Clone, PartialEq, Eq)]
-//!     struct Foo(u16);
+//!     pub struct Foo(u16);
 //!
-//!     new(bar);
+//!     pub new(bar);
 //!
-//!     field bar: Bar = [0..3];
-//!     field baz: usize = [3..7] ~ [8..12];
-//!     field quux: bool = [7];
+//!     pub field bar: Bar = [0..3];
+//!     pub field baz: usize = [3..7] ~ [8..12];
+//!     pub field quux: bool = [7];
 //! }
 //!
 //! #[derive(BitEnum, Copy, Clone, PartialEq, Eq, Debug)]
-//! enum Bar {
+//! pub enum Bar {
 //!     A = 0b101,
 //!     B = 0b010,
 //! }

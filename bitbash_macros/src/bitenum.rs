@@ -68,14 +68,14 @@ pub fn bitenum(input: TokenStream, use_const: bool) -> TokenStream {
         impl #impl_generics bitbash::ConvertRepr for #ident #ty_generics #where_clause {
             type Repr = #repr;
 
-            #vis fn try_from_repr(value: #repr) -> Option<Self> {
+            fn try_from_repr(value: #repr) -> Option<Self> {
                 match value {
                     #(#variant_discriminant => Some(#ident::#variant_name),)*
                     _ => None,
                 }
             }
 
-            #vis fn into_repr(self) -> #repr {
+            fn into_repr(self) -> #repr {
                 self as #repr
             }
         }
