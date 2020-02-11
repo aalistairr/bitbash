@@ -229,6 +229,7 @@ mod tests {
             }
 
             #[derive(crate::$BitEnum, Copy, Clone, PartialEq, Eq, Debug)]
+            #[repr(u8)]
             enum FooE {
                 A = 0b1010,
                 B = 0b0101,
@@ -261,11 +262,16 @@ mod tests {
                         | ((0x5 << 12) | (0x6 << 20))
                         | ((FooE::B as u32) << 24)
                 );
+
+                match <FooE as crate::ConvertRepr>::try_from_repr(FooE::A as u8) {
+                    Some(FooE::A) => (),
+                    _ => unreachable!(),
+                }
             }
 
             const BAR_LEN: usize = 2;
 
-            $crate::bitfield! {
+            crate::$bitfield! {
                 struct Bar([u32; BAR_LEN]);
 
                 new();
@@ -287,7 +293,7 @@ mod tests {
                 assert_eq!(bar.0, [1, 2 << 16]);
             }
 
-            $crate::bitfield! {
+            crate::$bitfield! {
                 struct Baz {
                     _padding0: [u32; 1],
                     a0: u32,

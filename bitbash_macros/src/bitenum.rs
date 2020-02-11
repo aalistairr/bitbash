@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Error, Fields, Meta};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Error, Fields, Meta, NestedMeta};
 
 pub fn bitenum(input: TokenStream, use_const: bool) -> TokenStream {
     let DeriveInput {
@@ -54,7 +54,14 @@ pub fn bitenum(input: TokenStream, use_const: bool) -> TokenStream {
         .next();
     let repr = match repr {
         Some(attr) => match attr.parse_meta() {
-            Ok(Meta::Path(p)) => p,
+            Ok(Meta::List(l)) if l.nested.len() == 1 => match &l.nested[0] {
+                NestedMeta::Meta(m) => m.path().clone(),
+                _ => {
+                    return TokenStream::from(
+                        Error::new_spanned(attr, "invalid attr").to_compile_error(),
+                    )
+                }
+            },
             _ => {
                 return TokenStream::from(
                     Error::new_spanned(attr, "invalid attr").to_compile_error(),
