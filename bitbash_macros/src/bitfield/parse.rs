@@ -7,12 +7,14 @@ use syn::{Attribute, Expr, Ident, ItemStruct, RangeLimits, Token, Type, Visibili
 pub mod kw {
     syn::custom_keyword!(field);
     syn::custom_keyword!(new);
+    syn::custom_keyword!(derive_debug);
 }
 
 #[derive(Clone)]
 pub struct Bitfield {
     pub strukt: ItemStruct,
     pub new: Option<New>,
+    pub derive_debug: Option<DeriveDebug>,
     pub fields: Vec<Field>,
 }
 
@@ -23,6 +25,13 @@ pub struct New {
     pub new_token: kw::new,
     pub paren_token: token::Paren,
     pub init_fields: Punctuated<Ident, Token![,]>,
+    pub semi_token: Token![;],
+}
+
+#[derive(Clone)]
+pub struct DeriveDebug {
+    pub attrs: Vec<Attribute>,
+    pub derive_debug_token: kw::derive_debug,
     pub semi_token: Token![;],
 }
 
@@ -78,39 +87,49 @@ impl Parse for Bitfield {
     fn parse(input: ParseStream) -> Result<Bitfield> {
         let strukt = input.parse()?;
         let mut new = None;
+        let mut derive_debug = None;
         let mut fields = Vec::new();
         while !input.is_empty() {
             match input.parse()? {
-                NewOrField::New(n) if new.is_none() => new = Some(n),
-                NewOrField::New(n) => {
+                Stmt::New(n) if new.is_none() => new = Some(n),
+                Stmt::New(n) => {
                     return Err(Error::new_spanned(
                         n.new_token,
                         "multiple definitions of `new`",
                     ))
                 }
-                NewOrField::Field(f) => fields.push(f),
+                Stmt::DeriveDebug(dd) if derive_debug.is_none() => derive_debug = Some(dd),
+                Stmt::DeriveDebug(dd) => {
+                    return Err(Error::new_spanned(
+                        dd.derive_debug_token,
+                        "multiple `derive_debug` statements",
+                    ))
+                }
+                Stmt::Field(f) => fields.push(f),
             }
         }
         Ok(Bitfield {
             strukt,
             new,
+            derive_debug,
             fields,
         })
     }
 }
 
-enum NewOrField {
+enum Stmt {
     New(New),
+    DeriveDebug(DeriveDebug),
     Field(Field),
 }
 
-impl Parse for NewOrField {
-    fn parse(input: ParseStream) -> Result<NewOrField> {
+impl Parse for Stmt {
+    fn parse(input: ParseStream) -> Result<Stmt> {
         let attrs = input.call(Attribute::parse_outer)?;
         let vis = input.parse()?;
         if let Ok(new_token) = input.parse() {
             let content;
-            Ok(NewOrField::New(New {
+            Ok(Stmt::New(New {
                 attrs,
                 vis,
                 new_token,
@@ -118,8 +137,14 @@ impl Parse for NewOrField {
                 init_fields: Punctuated::parse_terminated(&content)?,
                 semi_token: input.parse()?,
             }))
+        } else if let Ok(derive_debug_token) = input.parse() {
+            Ok(Stmt::DeriveDebug(DeriveDebug {
+                attrs,
+                derive_debug_token,
+                semi_token: input.parse()?,
+            }))
         } else {
-            Ok(NewOrField::Field(Field {
+            Ok(Stmt::Field(Field {
                 attrs,
                 vis,
                 field_token: input.parse()?,

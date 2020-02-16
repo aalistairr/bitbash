@@ -136,10 +136,21 @@ fn into_output_spec(bitfield: parse::Bitfield, use_const: bool) -> Result<output
         }
     };
 
+    let derive_debug = match bitfield.derive_debug {
+        None => false,
+        Some(dd) => {
+            for attr in dd.attrs {
+                return Err(Error::new_spanned(attr, "invalid attribute"));
+            }
+            true
+        }
+    };
+
     Ok(output::Bitfield {
         use_const,
         strukt,
         new,
+        derive_debug,
         fields,
     })
 }

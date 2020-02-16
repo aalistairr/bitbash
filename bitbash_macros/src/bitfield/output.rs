@@ -13,6 +13,7 @@ pub struct Bitfield {
     pub use_const: bool,
     pub strukt: ItemStruct,
     pub new: Option<New>,
+    pub derive_debug: bool,
     pub fields: Vec<Field>,
 }
 
@@ -57,6 +58,7 @@ impl ToTokens for Bitfield {
             use_const,
             strukt,
             new,
+            derive_debug,
             fields,
         } = self;
         let constness = constness(*use_const);
@@ -322,6 +324,25 @@ impl ToTokens for Bitfield {
                     #set
                 }
             });
+        }
+
+        if *derive_debug {
+            let mut debug_fields = quote! {};
+            for field in fields {
+                let field_name = &field.name;
+                debug_fields.extend(quote! {
+                    s.field(stringify!(#field_name), &self.#field_name());
+                });
+            }
+            tokens.extend(quote! {
+                impl #impl_generics core::fmt::Debug for #strukt_name #ty_generics #where_clause {
+                    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                        let mut s = f.debug_struct(stringify!(#strukt_name));
+                        #debug_fields
+                        s.finish()
+                    }
+                }
+            })
         }
     }
 }

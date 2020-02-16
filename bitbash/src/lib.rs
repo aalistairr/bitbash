@@ -20,6 +20,7 @@
 //!     pub struct Foo(u16);
 //!
 //!     pub new(bar);
+//!     derive_debug;
 //!
 //!     pub field bar: Bar = [0..3];
 //!     pub field baz: usize = [3..7] ~ [8..12];
@@ -142,6 +143,10 @@
 //!
 //! `new()` does not support structs that contain types that are not (arrays of) unsigned integers.
 //!
+//! ## `derive_debug`
+//! The `derive_debug` statement implements `core::fmt::Debug` for the bitfield.
+//! The underlying representation is not printed.
+//!
 //! ## `const fn`
 //! To generate `const fn` methods, build the bitbash crate with the `"const"` feature.
 //! Alternatively, use the `bitflags_const!` macro.
@@ -217,6 +222,7 @@ mod tests {
                 struct Foo(u32);
 
                 new(e);
+                derive_debug;
 
                 field a: bool = [31];
                 field b: u8 = [0..8];
