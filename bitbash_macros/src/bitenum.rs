@@ -68,16 +68,24 @@ pub fn bitenum(input: TokenStream, use_const: bool) -> TokenStream {
                 )
             }
         },
-        None => parse_quote! { usize },
+        None => parse_quote! { isize },
     };
 
+    let mod_name = format_ident!("__BitEnum_{}", ident);
     let mut expanded = quote! {
+        #[allow(non_snake_case)]
+        mod #mod_name {
+            use super::*;
+
+            #(pub const #variant_name: #repr = #variant_discriminant;)*
+        }
+
         impl #impl_generics bitbash::ConvertRepr for #ident #ty_generics #where_clause {
             type Repr = #repr;
 
             fn try_from_repr(value: #repr) -> Option<Self> {
                 match value {
-                    #(#variant_discriminant => Some(#ident::#variant_name),)*
+                    #(#mod_name::#variant_name => Some(#ident::#variant_name),)*
                     _ => None,
                 }
             }
@@ -92,7 +100,7 @@ pub fn bitenum(input: TokenStream, use_const: bool) -> TokenStream {
             impl #impl_generics #ident #ty_generics #where_clause {
                 #vis const fn const_try_from_repr(value: #repr) -> Option<Self> {
                     match value {
-                        #(#variant_discriminant => Some(#ident::#variant_name),)*
+                        #(#mod_name::#variant_name => Some(#ident::#variant_name),)*
                         _ => None,
                     }
                 }

@@ -332,6 +332,14 @@ mod tests {
                 baz.b = 0x10101010;
                 assert_eq!(baz.a(), !0);
             }
+
+            const QUUX_START: isize = 0x5;
+
+            #[derive(crate::$BitEnum)]
+            enum Quux {
+                A = QUUX_START,
+                B = QUUX_START + 1,
+            }
         };
     }
     #[cfg(feature = "const")]
