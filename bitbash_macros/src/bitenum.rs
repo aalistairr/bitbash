@@ -77,7 +77,10 @@ pub fn bitenum(input: TokenStream, use_const: bool) -> TokenStream {
         mod #mod_name {
             use super::*;
 
-            #(pub const #variant_name: #repr = #variant_discriminant;)*
+            #(
+                #[allow(non_upper_case_globals)]
+                pub const #variant_name: #repr = #variant_discriminant;
+            )*
         }
 
         impl #impl_generics bitbash::ConvertRepr for #ident #ty_generics #where_clause {

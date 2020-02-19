@@ -337,8 +337,8 @@ mod tests {
 
             #[derive(crate::$BitEnum)]
             enum Quux {
-                A = QUUX_START,
-                B = QUUX_START + 1,
+                Asdf = QUUX_START,
+                Zxcv = QUUX_START + 1,
             }
         };
     }
